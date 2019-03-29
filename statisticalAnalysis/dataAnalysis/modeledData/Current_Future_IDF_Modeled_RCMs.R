@@ -100,7 +100,7 @@ get_rainfall_list <- function(dirc, RCP, station, model_list, start_yr, end_yr){
 
 dirc <- "G:/Climate_Change_Project/RCMs_NA_Cordex_i/"
 
-RCP <- "RCP85"
+RCP <- "RCP45"
 
 #rainfall_data <- read.csv(paste0(dirc,"CanESM2_CanRCM4_BiasCorrected_Historical.csv"), header = TRUE)
 model_list <- read.csv(paste0(dirc, RCP, "/", "GCMs.csv"), header=FALSE)
@@ -117,20 +117,21 @@ years <- c("100yr", "50yr", "25yr", "10yr", "5yr", "2yr", "1.25yr", "1yr")
 
 
 # Start to estimate IDF for each statioon, each RCP, and each target year
-for(station in Stations$ID){
-  station <- toString(station)
-  lon <- Stations$LONGITUDE[Stations$ID==station]
-  lat <- Stations$LATITUDE[Stations$ID==station]
-  print(station)
+for(period in Periods$period){
+  print(period)
+  start_yr <- Periods$start_yr[Periods$period==period]
+  end_yr <- Periods$end_yr[Periods$period==period]
   
   IDF_Summary <- data.frame(matrix(ncol=11, nrow=0))
   colnames(IDF_Summary) <- c("Station_ID", "Lat", "Lon", years)  
   
-  for(period in Periods$period){
-    print(period)
-    start_yr <- Periods$start_yr[Periods$period==period]
-    end_yr <- Periods$end_yr[Periods$period==period]
-    
+  i=1
+  for(station in Stations$ID){
+    station <- toString(station)
+    lon <- Stations$LONGITUDE[Stations$ID==station]
+    lat <- Stations$LATITUDE[Stations$ID==station]
+    print(station)
+
     # create empty list to append selected rainfall data for IDF analysis
     selected_rainfall <- list()
     selected_rainfall <- get_rainfall_list(dirc, RCP, station, model_list, start_yr, end_yr)
@@ -138,13 +139,25 @@ for(station in Stations$ID){
     returns_Baseline <- rain_24hrs_IDF(selected_rainfall)
     returns_Baseline_mm <- round(returns_Baseline,1) # values in inches
     returns_Baseline_inches <- round(returns_Baseline/25.4, 1) #from mm to inches
-    
+      
     output_lines <- c("24-hour Rainfall IDF generated from historical observation:", years, returns_Baseline_mm, returns_Baseline_inches)
-    output_IDF <- file(paste0(dirc,"/BiasCorrection/GCMs/", RCP, "/", station, "/","24Hour_Rainfall_",period,"_30yrs_ML_estimation_Onelist_PDSAtlas_WT50.csv"))
+    output_IDF <- file(paste0(dirc,"BiasCorrection/GCMs/", RCP, "/", station, "/","24Hour_Rainfall_",period,"_30yrs_ML_estimation_Onelist_PDSAtlas_WT50.csv"))
     writeLines(output_lines, output_IDF)
     close(output_IDF)
+    
+    station_IDF <- list(station, lat, lon)
+    for(x in seq(1,length(returns_Baseline_inches),1)){
+      station_IDF[[length(station_IDF)+1]] <- returns_Baseline_inches[x]
+    }
+    
+    IDF_Summary[i,] <- station_IDF
+    i = i+1
   }
+  write.csv(IDF_Summary, file=paste0(dirc, "BiasCorrection/GCMs/", RCP, "/IDF_Summary", period, "_", RCP, ".csv"))
+  
 }
+
+
 
 
 
